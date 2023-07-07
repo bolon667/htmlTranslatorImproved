@@ -1,0 +1,75 @@
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Предисловие.</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>В этой статье я расскажу о библиотеке <strong>argos-translate</strong> для Python, которая позволит вам перевести текст с большинства языков.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Подготовка.</h2>
+<!-- /wp:heading -->
+
+<!-- wp:quote -->
+<blockquote class="wp-block-quote"><!-- wp:paragraph -->
+<p><strong>Версия Python</strong> проверяется с помощью комманды: <strong>python -V</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p></p>
+<!-- /wp:paragraph --></blockquote>
+<!-- /wp:quote -->
+
+<!-- wp:paragraph -->
+<p>Если вы используете <strong>Windows</strong>, то устанавливаем Python версии <strong><a href="https://www.python.org/downloads/release/python-3109/" target="_blank" rel="noreferrer noopener">1.10.9</a></strong>, если другую систему, то устанавливаем <strong><a href="https://www.python.org/downloads/" target="_blank" rel="noreferrer noopener">последнюю </a></strong>версию <strong>Python</strong>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Откат на <strong>старую версию</strong> Python, связан с тем что библиотека <strong><a href="https://github.com/google/sentencepiece" target="_blank" rel="noreferrer noopener">sentencepiece</a></strong>, которую использует <strong><a href="https://github.com/argosopentech/argos-translate" target="_blank" rel="noreferrer noopener">argos-translate</a></strong>, не устанавливается на последней версии Python. Надеюсь этот баг в будущем пофиксят, если что, дайте знать в комментах, отредактирую статью.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Далее, установите библиотеку <strong><a href="https://github.com/argosopentech/argos-translate" target="_blank" rel="noreferrer noopener">argos-translate</a></strong>, введя в коммандной строке:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code lang="C-like" class="language-C-like">pip install argostranslate</code></pre>
+<!-- /wp:code -->
+
+<!-- wp:paragraph -->
+<p>Теперь, <strong>скачайте модель</strong> перевода с <strong>русского </strong>на <strong>английский</strong>, <strong><a href="https://www.argosopentech.com/argospm/index/" target="_blank" rel="noreferrer noopener">отсюда</a></strong>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Создайте <strong>python скрипт</strong> (test.py) и поместите его в папку <strong>со скачанной моделью</strong>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Вставьте этот код в <strong>test.py</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code lang="python" class="language-python">import argostranslate.package, argostranslate.translate #Импортируем библиотеку argostranslate
+#текст, который будем переводить
+to_translate = "Under-Prog.Ru the best site in the world!" 
+#Загружаем модель перевода с английского на русский, на выходе получаем рабочий переводчик
+argostranslate.package.install_from_path("translate-en_ru-1_7.argosmodel") 
+#Переводим текст (to_translate) с английского (en) на русский (ru)
+result = argostranslate.translate.translate(to_translate, "en", "ru")
+#Выводим переведенный текст в консоль
+print(result)
+#Ждем нажатия от пользователя, чтобы приложение сразу не закрылось
+input()</code></pre>
+<!-- /wp:code -->
+
+<!-- wp:paragraph -->
+<p>Весь код я объяснил в комментариях. </p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Теперь запустите. Вы получите перевод строки.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Итоговый результат.</h2>
+<!-- /wp:heading -->
