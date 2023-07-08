@@ -193,8 +193,3 @@ class htmlTranslator:
 
 
     # print(p.from)argostranslate.package.AvailablePackage
-
-translator = htmlTranslator("translate-ru_en-1_0.argosmodel", "ru", "en")
-translator.get_file("page.html")
-translator.translate()
-translator.saveFile("out.html")
