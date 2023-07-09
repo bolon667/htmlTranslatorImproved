@@ -4,17 +4,24 @@ import bs4
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString
 import re
+import xml.etree.ElementTree as ET
+from lxml import etree
+
+# from pyquery import PyQuery as pq
 
 
 
 class htmlTranslator:
     input_text = ""
-    from_lang = ""
-    to_lang = ""
+    from_lang_code = ""
+    to_lang_code = ""
+    from_lang_name = ""
+    to_lang_name = ""
     translated_soup = None
     translated_code = ""
+    cur_type = ""
 
-    NON_TRANSLATEABLE_TAGS = [
+    NON_TRANSLATEABLE_TAGS_HTML = [
         "address",
         "applet",
         "audio",
@@ -27,13 +34,33 @@ class htmlTranslator:
         "video",
     ]
 
+    NON_TRANSLATEABLE_TAGS_XML_WP = [
+        "link",
+        "pubDate",
+        "creator",
+        "guid",
+        "post_id",
+        "post_id_gmt",
+        "post_modified"
+        "post_modified_gmt",
+        "comment_status",
+        "ping_status",
+        "status",
+        "category",
+        "is_stiky",
+        "post_parent",
+        "menu_order",
+        "post_password",
+        "post_meta"
+    ]
+
     STRIP_TEXT_TAGS = [
         "strong",
         "a"
     ]
     def __init__(self, model_path, from_lang, to_lang):
-        self.from_lang = from_lang
-        self.to_lang = to_lang
+        self.from_lang_code = from_lang
+        self.to_lang_code = to_lang
         argostranslate.package.install_from_path(model_path)
         installed_languages = argostranslate.translate.get_installed_languages()
         # En = English
@@ -47,6 +74,7 @@ class htmlTranslator:
         for p in argostranslate.package.get_installed_packages():
             
             if p.from_code == from_lang:
+                self.from_lang_name = p.from_name
                 cant_pass = False
                 break
             from_lang_ind += 1
@@ -54,6 +82,7 @@ class htmlTranslator:
         to_lang_ind = 0
         for p in argostranslate.package.get_installed_packages():
             if p.to_code == to_lang:
+                self.to_lang_name = p.to_name
                 cant_pass = False
                 break
             to_lang_ind += 1
@@ -62,26 +91,42 @@ class htmlTranslator:
         self.underlying_translation = installed_languages[from_lang_ind].get_translation(installed_languages[0])
     def get_text(self, text):
         self.input_text = text
-    def get_file(self, path):
+    def get_file(self, path, cur_type="html"):
+        self.cur_type = cur_type
         with open(path, "r", encoding="utf-8") as f:
             self.input_text = f.read()
     def fix_spaces(self):
         #Not very reliable fix, but better then nothing
         pass
         self.translated_code = re.sub(r"(>)([^\s-])", r"\1 \2", self.translated_code)
-    def itag_of_soup(self, soup):
-        """Returns an argostranslate.tags.ITag tree from a BeautifulSoup object.
-
-        Args:
-            soup (bs4.element.Navigablestring or bs4.element.Tag): Beautiful Soup object
-
-        Returns:
-            argostranslate.tags.ITag: Argos Translate ITag tree
-        """
+    def fix_spaces_init(self):
+        self.input_text = re.sub(r"(>)([^\s-])", r"\1 \2", self.input_text)
+    def itag_of_soup_xml_wp(self, soup):
+        translateable = soup.name not in self.NON_TRANSLATEABLE_TAGS_HTML
         
-        #No translation for tags from NON_TRANSLATEABLE_TAGS
-        translateable = soup.name not in self.NON_TRANSLATEABLE_TAGS
-        #No translation for comments (useful for wordpress)
+        if isinstance(soup, bs4.element.Comment):
+            # print(type(soup))
+            to_return = Tag(soup, False)
+            to_return.soup = soup
+            return to_return
+        
+        if isinstance(soup, bs4.element.NavigableString):
+            
+            # print(type(soup))
+            # print(soup)
+            return str(soup)
+       
+        temp_arr = []
+        for content in soup.contents:
+            temp_arr.append(self.itag_of_soup_xml_wp(content))
+        # print(type(soup))
+        # print(soup)
+        to_return = Tag(temp_arr, translateable)
+        to_return.soup = soup
+        return to_return
+    
+    def itag_of_soup(self, soup):
+        translateable = soup.name not in self.NON_TRANSLATEABLE_TAGS_HTML
         if isinstance(soup, bs4.element.Comment):
             to_return = Tag(soup, False)
             to_return.soup = soup
@@ -90,17 +135,13 @@ class htmlTranslator:
         if isinstance(soup, bs4.element.NavigableString):
             return str(soup)
        
-        
-        # translateable = True
-        # to_return = Tag([self.itag_of_soup(content) for content in soup.contents], translateable)
-
         temp_arr = []
         for content in soup.contents:
             temp_arr.append(self.itag_of_soup(content))
-
         to_return = Tag(temp_arr, translateable)
         to_return.soup = soup
         return to_return
+    
     def soup_of_itag(self, itag):
         """Returns a BeautifulSoup object from an Argos Translate ITag.
 
@@ -123,11 +164,90 @@ class htmlTranslator:
     def strip_text_in_tags(self, soup):
         pass
     def translate(self):
+        # self.fix_spaces_init()
+        self.translated_soup = BeautifulSoup(self.input_text, "html.parser")
+
+        # self.translated_soup.prettify()
+        match(self.cur_type):
+            case "html":
+                self.tranlsate_html()
+            case "xml_wp":
+                pass
+                self.convert_wp_cdata_for_polylang()
+                self.translate_xml_wp()
+                
+    def fix_parser_errors(self):
+        print("Fixing html parser bugs")
+        self.translated_code = re.sub("<link\/>(.+\S)", r"<link>\1</link>", self.translated_code)
+        # items = self.translated_soup.findAll("item")
+        # for item in items:
+        #     for cont in item.contents:
+        #         if cont.name == "link":
+        #             print(cont)
+    def gen_cat_name(self, cat_name):
+        result = ""
+        if(cat_name.find("-") != -1):
+            result = cat_name[:cat_name.rfind("-")+1] + self.to_lang_code
+        else:
+            result = cat_name + "-" + self.to_lang_code
+        return result
+    def convert_wp_cdata_for_polylang(self):
+        print("Converting cdata for polylang")
+        #Changing language category
+        lang_cat_arr = self.translated_soup.find_all("category", attrs={"domain": "language"})
+        for lang_cat in lang_cat_arr:
+            # lang_cat = self.translated_soup.find("category", attrs={"domain": "language"})
+            lang_cat.contents[0] = bs4.element.CData(self.to_lang_name) #Changing Cdata
+            lang_cat.attrs["nicename"] = self.to_lang_code
+
+        #And Catergory name
+        cat_name_arr = self.translated_soup.find_all("wp:category_nicename")
+        for cat_name in cat_name_arr:
+            # cat_name = self.translated_soup.find("wp:category_nicename")
+           
+            cat_name.contents[0] = bs4.element.CData(self.gen_cat_name(cat_name.contents[0])) #Changing Cdata
+            
+            cat_name2_arr = self.translated_soup.find_all("category", attrs={"domain": "category"})
+            for cat_name2 in cat_name2_arr:
+                cat_name2.attrs["nicename"] = self.gen_cat_name(cat_name2.attrs["nicename"])
+        # self.translated_soup = soup
+
+        item_arr = self.translated_soup.find_all("item")
+        for item in item_arr:
+            #Translating title
+            title_elem = item.find("title")
+            title_tr_text = argostranslate.translate.translate(str(title_elem.contents[0]), self.from_lang_code, self.to_lang_code)
+            title_elem.contents[0] = bs4.element.CData(title_tr_text) #Changing Cdata
+
+            #stripping wp_passw, to fix bug with " " (space symbol) password
+            wp_passw = item.find("wp:post_password")
+            wp_passw.contents[0] = bs4.element.CData(str(wp_passw.contents[0]).strip())
+
+            
+    def translate_xml_wp(self):
+        print("Translating xml wp")
+        items = self.translated_soup.findAll("item")
+        amount_of_posts = len(items)
+        print(f"{str(amount_of_posts)} posts in query")
+        for item in items:
+            elem = item.find("content:encoded")
+            soup_html = BeautifulSoup(str(elem), "html5lib").body.findChild()
+            itag = self.itag_of_soup(soup_html)
+            # itag_of_soup_xml_wp
+            translated_tag = translate_tags(self.underlying_translation, itag)
+            temp_soup = self.soup_of_itag(translated_tag)
+
+            elem.string.replace_with(temp_soup)
+            elem.unwrap()
+            amount_of_posts -= 1
+            print(f"{str(amount_of_posts)} posts remained")
+
+
+    def tranlsate_html(self):
+        print("Translating html")
         soup = BeautifulSoup(self.input_text, "lxml")
-        # soup = self.strip_text_in_tags(soup)
         itag = self.itag_of_soup(soup)
         translated_tag = translate_tags(self.underlying_translation, itag)
-        # print(self.text_of_itag(translated_tag))
         self.translated_soup = self.soup_of_itag(translated_tag)
     def test(self):
         print(self.input_text)
@@ -182,14 +302,16 @@ class htmlTranslator:
         return translated_code
 
     def saveFile(self, path):
-        self.translated_code = str(self.translated_soup)
-        self.fix_spaces()
+        match(self.cur_type):
+            case "html":
+                self.translated_code = str(self.translated_soup)
+                self.fix_spaces()
+            case "xml_wp":
+                self.translated_code = str(self.translated_soup)
+                self.fix_parser_errors()
         # if self.is_html_wp_page():
             # pass
             # translated_code = self.comment_wp_fixer(translated_code)
             
         with open(path, "w", encoding="utf-8") as file:
             file.write(self.translated_code)
-
-
-    # print(p.from)argostranslate.package.AvailablePackage

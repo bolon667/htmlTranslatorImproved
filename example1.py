@@ -5,9 +5,9 @@ from src.htmlTranslatorImproved import htmlTranslator
 
 #Put model path, from_lang_code, to_lang_code
 translator = htmlTranslator("translate-ru_en-1_0.argosmodel", "ru", "en")
-#Open html
-translator.get_file("page.html")
+#Open xml
+translator.get_file("testDump.xml", "xml_wp")
 #Translate
 translator.translate()
 #Save
-translator.saveFile("out.html")
+translator.saveFile("testOut.xml")
